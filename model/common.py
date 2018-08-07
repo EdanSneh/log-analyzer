@@ -8,7 +8,17 @@ from tensorflow.contrib import rnn
 # number of units in RNN cell
 n_hidden = 512
 
+'''
+Args:
+    x: tf input
+    weights: weights tf variable
+    biases: biases tf variable
+    n_input: num words inputed
+Returns:
+    tf.matmul: RNN definition
 
+returns an RNN
+'''
 def RNN(x, weights, biases, n_input):
     # reshape to [1, n_input]
     x = tf.reshape(x, [-1, n_input])
@@ -33,7 +43,14 @@ def RNN(x, weights, biases, n_input):
     # we only want the last output
     return tf.matmul(outputs[-1], weights['out']) + biases['out']
 
+'''
+Args:
+    fname: a files directoy
+Returns:
+    content: np array of words in file
 
+Seperates words in file to be parsed later
+'''
 def read_data(fname):
     with open(fname) as f:
         content = f.readlines()
@@ -42,7 +59,16 @@ def read_data(fname):
     content = np.array(content)
     return content
 
+'''
+Args:
+    words: takes in parsed words
+    dictionary: a dictionary of all the known words so far
+Returns:
+    dictionary: updated dictionary of all the known words so far
+    reverse_dictionary: reverse of dictionary
 
+Updates dictionary with new words learned in log and returns forwards and backwards dictionary
+'''
 def build_dataset(words, dictionary):
     count = collections.Counter(words).most_common()
     words_set = set()
@@ -54,7 +80,17 @@ def build_dataset(words, dictionary):
     reverse_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
     return dictionary, reverse_dictionary
 
+'''
+Args:
+    dictionary: a dictionary of all the known words so far
+    n_input: num words inputed
+Returns:
+    RNN: RNN LSTM model
+    x: tf inputs
+    y: tf outputs
 
+Initializes variables and RNN model
+'''
 def init_model(dictionary, n_input):
     vocab_size = len(dictionary)
 

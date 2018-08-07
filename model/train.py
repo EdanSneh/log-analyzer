@@ -36,7 +36,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # training_iters = 50000
 training_iters = 1
-display_step = 1000
+display_step = 1
 
 # Initializing the variables
 init = tf.global_variables_initializer()
@@ -49,7 +49,6 @@ with tf.Session() as session:
     end_offset = n_input + 1
     acc_total = 0
     loss_total = 0
-
     while step < training_iters:
         # Generate a minibatch. Add some randomness on selection process.
         if offset > (len(training_data) - end_offset):
@@ -57,7 +56,6 @@ with tf.Session() as session:
 
         symbols_in_keys = [[dictionary[str(training_data[i])]] for i in range(offset, offset + n_input)]
         symbols_in_keys = np.reshape(np.array(symbols_in_keys), [-1, n_input, 1])
-
         symbols_out_onehot = np.zeros([vocab_size], dtype=float)
         symbols_out_onehot[dictionary[str(training_data[offset + n_input])]] = 1.0
         symbols_out_onehot = np.reshape(symbols_out_onehot, [1, -1])
