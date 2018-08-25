@@ -57,11 +57,9 @@ def read_data(fname):
         content = f.readlines()
     totaloutput=[]
     for line in content:
-        output = re.search(r'^(time)="(.*?)T', line).groups()
+        # output = re.search(r'^(time)="(.*?)T', line).groups()
         input = re.search(r'Z" (.*)', line).groups()
-        output2 = re.findall(r'[A-Za-z0-9]\w+', input[0])
-        output2 = [output[0]]+[output[1]]+output2
-        totaloutput = totaloutput + output2
+        totaloutput = totaloutput + [input[0]]
     totaloutput = np.array(totaloutput)
     return totaloutput
 
@@ -112,3 +110,24 @@ def init_model(dictionary, n_input):
         'out': tf.Variable(tf.random_normal([vocab_size]))
     }
     return RNN(x, weights, biases, n_input), x, y
+
+'''get package globalized n_input'''
+def get_n_input():
+    return 3
+
+
+
+'''
+Give an ML summary
+'''
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        with tf.name_scope('stddev'):
+            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('max', tf.reduce_max(var))
+        tf.summary.scalar('min', tf.reduce_min(var))
+        tf.summary.histogram('histogram', var)

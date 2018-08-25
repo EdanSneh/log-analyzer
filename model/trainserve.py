@@ -21,7 +21,7 @@ vocab_size = len(dictionary)
 
 # Parameters
 learning_rate = 0.001
-n_input = common.get_n_input()
+n_input = 3
 pred, x, y = common.init_model(dictionary, n_input)
 
 saver = tf.train.Saver()
@@ -87,7 +87,6 @@ with tf.Session() as session:
             symbols_in = [training_data[i] for i in range(offset, offset + n_input)]
             symbols_out = training_data[offset + n_input]
             symbols_out_pred = reverse_dictionary[int(tf.argmax(onehot_pred, 1).eval())]
-            # print(session.run(pred, feed_dict={x: symbols_in_keys, y: symbols_out_onehot}))
             print("%s - [%s] vs [%s]" % (symbols_in, symbols_out, symbols_out_pred))
         step += 1
         offset += (n_input + 1)

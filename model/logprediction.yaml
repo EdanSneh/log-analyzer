@@ -10,18 +10,27 @@ spec:
       claimName: log-analyzer-pvc
   templates:
   - name: log-analyzer
-    # inputs:
-    #   artifacts:
-    #   - name: CODE
-    #     git: 
-    #       repo: https://github.com/alexmt/log-analyzer.git
-    steps:
-    - - name: APPLY-PVC
+    inputs:
+      artifacts:
+      - name: CODE
+        git: 
+          repo: https://github.com/EliZucker/Argo-Workflow-Test.git
+    dag:
+      tasks:
+      - name: APPLY-PVC
         template: apply-pvc
-    - - name: TFJOB
+      - name: WEBHOOK
+        template: redeploy-webhook
+        arguments:
+          artifacts:
+          - name: CODE
+            from: "{{inputs.artifacts.CODE}}"
+      - name: TFJOB
         template: tfjob
-    - - name: OutputTFJOB
+        dependencies: [APPLY-PVC, WEBHOOK]
+      - name: OutputTFJOB
         template: output
+        dependencies: [TFJOB]
 
   - name: apply-pvc
     resource:
@@ -36,6 +45,22 @@ spec:
           resources:
             requests:
               storage: 1Gi
+
+  - name: redeploy-webhook
+    inputs:
+      artifacts:
+      - name: CODE
+        path: /root/
+    container:
+      image: lachlanevenson/k8s-kubectl
+      command: [sh, -c]
+      args: ["
+        POD=$(kubectl get pod -l app=webhook -o jsonpath='{.items[0].metadata.name}') &&
+        kubectl delete sensor webhook-threedee &&
+        kubectl delete pod $POD &&
+        kubectl create -f /root/webook-logs.yaml
+      
+      "]
 
   - name: output
     container:

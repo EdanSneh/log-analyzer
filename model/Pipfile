@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 tensorflow = "*"
+tensorflow-serving-api = "*"
+requests = "*"
 
 [dev-packages]
 pylint = "*"

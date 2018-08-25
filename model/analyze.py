@@ -22,16 +22,15 @@ dictionary, reverse_dictionary = common.build_dataset(data, dict)
 
 vocab_size = len(dictionary)
 
-n_input = 3
+n_input = common.get_n_input()
 pred, x, y = common.init_model(dictionary, n_input)
 
 saver = tf.train.Saver()
-
 with tf.Session() as session:
-    saver.restore(session, args.model_dir_path)
+    saver.restore(session, args.model_dir_path+"/model")
     print("Model restored from {}".format(args.model_dir_path))
-
     for words in np.array_split(data, len(data) / n_input):
+        print(words)
         if len(words) == n_input:
             sentence = ""
             symbols_in_keys = [dictionary[str(words[i])] for i in range(len(words))]
@@ -39,7 +38,7 @@ with tf.Session() as session:
                 keys = np.reshape(np.array(symbols_in_keys), [-1, n_input, 1])
                 onehot_pred = session.run(pred, feed_dict={x: keys})
                 onehot_pred_index = int(tf.argmax(onehot_pred, 1).eval())
-                sentence = "%s %s" % (sentence,reverse_dictionary[onehot_pred_index])
+                sentence = "%s %s" % (sentence, reverse_dictionary[onehot_pred_index])
                 symbols_in_keys = symbols_in_keys[1:]
                 symbols_in_keys.append(onehot_pred_index)
             print(sentence)
