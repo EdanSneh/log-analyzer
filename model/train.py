@@ -45,9 +45,9 @@ tf.summary.scalar('accuracy', accuracy)
 training_iters = 5000
 display_step = 10
 
-#Summary
-merged = tf.summary.merge_all()
-test_writer = tf.summary.FileWriter('/tmp/logs/test')
+#Summary Uncomment for TF stats see bellow
+# merged = tf.summary.merge_all()
+# test_writer = tf.summary.FileWriter('/tmp/logs/test')
 
 # Initializing the variables
 init = tf.global_variables_initializer()
@@ -76,8 +76,9 @@ with tf.Session() as session:
         loss_total += loss
         acc_total += acc
         if (step + 1) % display_step == 0:
-            summary = session.run(merged, feed_dict={x: symbols_in_keys, y: symbols_out_onehot})
-            test_writer.add_summary(summary, step)
+            # Uncomment for TF stats see above
+            # summary = session.run(merged, feed_dict={x: symbols_in_keys, y: symbols_out_onehot})
+            # test_writer.add_summary(summary, step)
 
             print("Iter= " + str(step + 1) + ", Average Loss= " + \
                   "{:.6f}".format(loss_total / display_step) + ", Average Accuracy= " + \
@@ -87,7 +88,6 @@ with tf.Session() as session:
             symbols_in = [training_data[i] for i in range(offset, offset + n_input)]
             symbols_out = training_data[offset + n_input]
             symbols_out_pred = reverse_dictionary[int(tf.argmax(onehot_pred, 1).eval())]
-            # print(session.run(pred, feed_dict={x: symbols_in_keys, y: symbols_out_onehot}))
             print("%s - [%s] vs [%s]" % (symbols_in, symbols_out, symbols_out_pred))
         step += 1
         offset += (n_input + 1)

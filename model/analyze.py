@@ -30,7 +30,6 @@ with tf.Session() as session:
     saver.restore(session, args.model_dir_path+"/model")
     print("Model restored from {}".format(args.model_dir_path))
     for words in np.array_split(data, len(data) / n_input):
-        print(words)
         if len(words) == n_input:
             sentence = ""
             symbols_in_keys = [dictionary[str(words[i])] for i in range(len(words))]
