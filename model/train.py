@@ -15,6 +15,10 @@ parser.add_argument("--model-dir-path")
 
 args = parser.parse_args()
 
+#creates parents directories for model
+if not os.path.exists(args.model_dir_path):
+    os.makedirs(args.model_dir_path)
+
 training_data = common.read_data(args.input_path)
 dictionary, reverse_dictionary = common.build_dataset(training_data, dict())
 vocab_size = len(dictionary)
@@ -42,7 +46,7 @@ with tf.name_scope('accuracy'):
 tf.summary.scalar('accuracy', accuracy)
 
 # training_iters = 50000
-training_iters = 5000
+training_iters = 1
 display_step = 10
 
 #Summary Uncomment for TF stats see bellow

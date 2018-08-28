@@ -48,7 +48,6 @@ for sentences in np.array_split(data, len(data) / n_input):
             result_future = stub.Predict(request, 30.0)
             output = np.array(result_future.outputs['predicted_logs'].float_val)
             print(output)
-            output.max()
             # logs = "%s %s" % (sentences, reverse_dictionary[onehot_pred_index])
             # symbols_in_keys = symbols_in_keys[1:]
             # symbols_in_keys.append(onehot_pred_index)
