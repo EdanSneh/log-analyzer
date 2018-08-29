@@ -353,7 +353,9 @@ spec:
                                   command:
                                   - /bin/sh
                                   - -c
-                                  image: tensorflow/tensorflow:latest-gpu-py3
+                                  # Add when more gpus exist
+                                  # image: tensorflow/tensorflow:latest-gpu-py3
+                                  image: tensorflow/tensorflow:latest-py3
                                   name: tensorflow
                                   volumeMounts: 
                                   - name: workdir
