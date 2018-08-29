@@ -37,12 +37,19 @@ spec:
           artifacts:
           - name: CODE
             from: "{{inputs.artifacts.CODE}}"
-      - name: GET-DATA
-        template: retrieve-data
+      - name: FIXINPUT
+        template: fixinput
         arguments:
           parameters:
           - name: webhook
             value: "{{inputs.parameters.webhook}}"
+      - name: GET-DATA
+        template: retrieve-data
+        dependencies: [FIXINPUT]
+        arguments:
+          parameters:
+          - name: webhook
+            value: "{{tasks.FIXINPUT.outputs.result}}"
       - name: TFCLIENT
         template: client
         dependencies: [APPLY-PVC, WEBHOOK, GET-DATA]
@@ -52,7 +59,7 @@ spec:
             from: "{{inputs.artifacts.CODE}}"
           parameters:
           - name: webhook
-            value: "{{inputs.parameters.webhook}}"
+            value: "{{tasks.FIXINPUT.outputs.result}}"
       - name: TFJOB
         template: tfjob
         dependencies: [TFSVC, TFSERVER, TFCLIENT]
@@ -95,6 +102,17 @@ spec:
         kubectl delete pod $POD &&
         kubectl create -f /mnt/vol/model/yamls/webhook_logs.yaml
       "]
+
+  - name: fixinput
+    inputs:
+      parameters:
+      - name: webhook
+    script:
+      image: python:alpine3.6
+      command: [python]
+      source: |
+        string = "{{inputs.parameters.webhook}}"
+        print(string[8:])
 
   - name: retrieve-data
     inputs:

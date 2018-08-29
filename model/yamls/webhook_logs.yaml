@@ -64,12 +64,19 @@ spec:
                         artifacts:
                         - name: CODE
                           from: "{{inputs.artifacts.CODE}}"
-                    - name: GET-DATA
-                      template: retrieve-data
+                    - name: FIXINPUT
+                      template: fixinput
                       arguments:
                         parameters:
                         - name: webhook
                           value: "{{inputs.parameters.webhook}}"
+                    - name: GET-DATA
+                      template: retrieve-data
+                      dependencies: [FIXINPUT]
+                      arguments:
+                        parameters:
+                        - name: webhook
+                          value: "{{tasks.FIXINPUT.outputs.result}}"
                     - name: TFCLIENT
                       template: client
                       dependencies: [APPLY-PVC, WEBHOOK, GET-DATA]
@@ -79,7 +86,7 @@ spec:
                           from: "{{inputs.artifacts.CODE}}"
                         parameters:
                         - name: webhook
-                          value: "{{inputs.parameters.webhook}}"
+                          value: "{{tasks.FIXINPUT.outputs.result}}"
                     - name: TFJOB
                       template: tfjob
                       dependencies: [TFSVC, TFSERVER, TFCLIENT]
@@ -123,6 +130,17 @@ spec:
                       kubectl create -f /mnt/vol/model/yamls/webhook_logs.yaml
                     "]
 
+                - name: fixinput
+                  inputs:
+                    parameters:
+                    - name: webhook
+                  script:
+                    image: python:alpine3.6
+                    command: [python]
+                    source: |
+                      string = "{{inputs.parameters.webhook}}"
+                      print(string[8:])
+
                 - name: retrieve-data
                   inputs:
                     parameters:
@@ -138,9 +156,8 @@ spec:
                       ACCESS_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY &&
                       ACCESS_KEY=AKIAIOSFODNN7EXAMPLE &&
                       mc config host add minio $S3_ENDPOINT $ACCESS_KEY $ACCESS_SECRET_KEY &&
-                      SUBSTRING=echo ${{{inputs.parameters.webhook}}//\%2F/\/} &&
-                      mc cp minio/log-analyzer/input/$SUBSTRING /mnt/vol/input/$SUBSTRING &&
-                      mc rm minio/log-analyzer/input/$SUBSTRING
+                      mc cp minio/log-analyzer/input/{{inputs.parameters.webhook}} /mnt/vol/input/{{inputs.parameters.webhook}} &&
+                      mc rm minio/log-analyzer/input/{{inputs.parameters.webhook}}
                     "]
 
                 - name: client
@@ -158,8 +175,7 @@ spec:
                     command: [sh, -c]
                     args: ["
                       cd /tmp/model &&
-                      SUBSTRING=echo ${{{inputs.parameters.webhook}}//\%2F/\/} &&
-                      python3 ./client.py --input-path /mnt/vol/input/SUBSTRING --model-dir-path /mnt/vol/dictionary    
+                      python3 ./client.py --input-path /mnt/vol/input/{{inputs.parameters.webhook}} --model-dir-path /mnt/vol/dictionary    
                     "]  
 
                 - name: output
