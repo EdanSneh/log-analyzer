@@ -72,14 +72,14 @@ spec:
                           value: "{{inputs.parameters.webhook}}"
                     - name: GET-DATA
                       template: retrieve-data
-                      dependencies: [FIXINPUT, APPlY-PVC]
+                      dependencies: [FIXINPUT, APPLY-PVC]
                       arguments:
                         parameters:
                         - name: webhook
                           value: "{{tasks.FIXINPUT.outputs.result}}"
                     - name: TFCLIENT
                       template: client
-                      dependencies: [TFSVC, TFSERVER GET-DATA]
+                      dependencies: [TFSVC, TFSERVER, GET-DATA]
                       arguments:
                         artifacts:
                         - name: CODE
@@ -365,5 +365,5 @@ spec:
                                   #     nvidia.com/gpu: "1"
                                 restartPolicy: OnFailure
 
-                                                              
-                                                            
+                                                                            
+                                                                          

@@ -45,14 +45,14 @@ spec:
             value: "{{inputs.parameters.webhook}}"
       - name: GET-DATA
         template: retrieve-data
-        dependencies: [FIXINPUT]
+        dependencies: [FIXINPUT, APPLY-PVC]
         arguments:
           parameters:
           - name: webhook
             value: "{{tasks.FIXINPUT.outputs.result}}"
       - name: TFCLIENT
         template: client
-        dependencies: [APPLY-PVC, WEBHOOK, GET-DATA]
+        dependencies: [TFSVC, TFSERVER, GET-DATA]
         arguments:
           artifacts:
           - name: CODE
@@ -62,7 +62,7 @@ spec:
             value: "{{tasks.FIXINPUT.outputs.result}}"
       - name: TFJOB
         template: tfjob
-        dependencies: [TFSVC, TFSERVER, TFCLIENT]
+        dependencies: [TFCLIENT]
         # when: "{{log}} != err"
       - name: OutputTFJOB
         template: output
