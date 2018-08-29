@@ -97,6 +97,6 @@ with tf.Session() as session:
         offset += (n_input + 1)
 
     saver.save(session, os.path.join(args.model_dir_path, "model"))
-    with open(os.path.join(args.model_dir_path, "dictionary.json"), "w") as dict_file:
+    with open("./dictionary/dictionary.json", "w") as dict_file:
         dict_file.write(json.dumps(dictionary))
     print("Saved training result to {}".format(args.model_dir_path))

@@ -175,7 +175,9 @@ spec:
                     command: [sh, -c]
                     args: ["
                       cd /tmp/model &&
-                      python3 ./client.py --input-path /mnt/vol/input/{{inputs.parameters.webhook}} --model-dir-path /mnt/vol/dictionary    
+                      python3 ./client.py --input-path /mnt/vol/input/{{inputs.parameters.webhook}} --model-dir-path ./dictionary &&
+                      mkdir logs -p &&
+                      mv /mnt/vol/input/{{inputs.parameters.webhook}} /mnt/vol/input/logs/log.txt  
                     "]  
 
                 - name: output
@@ -344,12 +346,9 @@ spec:
                                 - args: ["
                                   apt-get update &&
                                   apt-get install git wget -y &&
-                                  wget https://dl.minio.io/server/minio/release/linux-amd64/minio &&
-                                  chmod +x minio &&
-                                  ./minio server /data &&
                                   git clone -b edanbranch https://github.com/EdanSneh/log-analyzer.git &&
                                   cd log-analyzer/model &&
-                                  python3 ./train.py --input-path sample-data/logs.txt --model-dir-path /mnt/vol/model
+                                  python3 ./train.py --input-path /mnt/vol/input/logs/log.txt --model-dir-path ./dictionary
                                   "]
                                   command:
                                   - /bin/sh
