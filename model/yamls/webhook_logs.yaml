@@ -44,15 +44,16 @@ spec:
                   inputs:
                     parameters:
                     - name: webhook
-                      value: "{{arguments.parameters.webhook}}"
                     artifacts:
                     - name: CODE
                       git: 
                         repo: https://github.com/EdanSneh/log-analyzer.git
+                        revision: edanbranch
+              #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                   dag:
                     tasks:
                     - name: TFSVC
-                      template: svc
+                      template: tfsvc
                     - name: TFSERVER
                       template: tfserve
                     - name: APPLY-PVC
@@ -63,15 +64,34 @@ spec:
                         artifacts:
                         - name: CODE
                           from: "{{inputs.artifacts.CODE}}"
+                    - name: GET-DATA
+                      template: retrieve-data
+                      arguments:
+                        parameters:
+                        - name: webhook
+                          value: "{{inputs.parameters.webhook}}"
+                    - name: TFCLIENT
+                      template: client
+                      dependencies: [APPLY-PVC, WEBHOOK, GET-DATA]
+                      arguments:
+                        artifacts:
+                        - name: CODE
+                          from: "{{inputs.artifacts.CODE}}"
+                        parameters:
+                        - name: webhook
+                          value: "{{inputs.parameters.webhook}}"
                     - name: TFJOB
                       template: tfjob
-                      dependencies: [APPLY-PVC, WEBHOOK]
+                      dependencies: [TFSVC, TFSERVER, TFCLIENT]
+                      # when: "{{log}} != err"
                     - name: OutputTFJOB
                       template: output
                       dependencies: [TFJOB]
-                    - name: TFCLIENT
-                      template: client
-                      dependencies: [TFSVC, TF SERVER, OutputTFJOB]
+                      arguments:
+                        artifacts:
+                        - name: CODE
+                          from: "{{inputs.artifacts.CODE}}"
+              #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
                 - name: apply-pvc
@@ -92,7 +112,7 @@ spec:
                   inputs:
                     artifacts:
                     - name: CODE
-                      path: /root/
+                      path: /mnt/vol
                   container:
                     image: lachlanevenson/k8s-kubectl
                     command: [sh, -c]
@@ -100,28 +120,62 @@ spec:
                       POD=$(kubectl get pod -l app=webhook -o jsonpath='{.items[0].metadata.name}') &&
                       kubectl delete sensor webhook-threedee --ignore-not-found=true &&
                       kubectl delete pod $POD &&
-                      kubectl create -f /root/model/yamls/webhook_logs.yaml
+                      kubectl create -f /mnt/vol/model/yamls/webhook_logs.yaml
                     "]
 
-                - name: output
+                - name: retrieve-data
+                  inputs:
+                    parameters:
+                    - name: webhook
                   container:
                     volumeMounts: 
                     - name: workdir
                       mountPath: /mnt/vol
+                    image: minio/mc
+                    command: [sh, -c]
+                    args: ["
+                      S3_ENDPOINT=http://35.233.223.198:9000 &&
+                      ACCESS_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY &&
+                      ACCESS_KEY=AKIAIOSFODNN7EXAMPLE &&
+                      mc config host add minio $S3_ENDPOINT $ACCESS_KEY $ACCESS_SECRET_KEY &&
+                      mc cp minio/log-analyzer/input/{{inputs.parameters.webhook}} /mnt/vol/input/{{inputs.parameters.webhook}} &&
+                      mc rm minio/log-analyzer/input/{{inputs.parameters.webhook}}
+                    "]
+
+                - name: client
+                  inputs:
+                    artifacts:
+                    - name: CODE
+                      path: /tmp/
+                    parameters:
+                    - name: webhook
+                  container:
+                    volumeMounts: 
+                    - name: workdir
+                      mountPath: /mnt/vol
+                    image: gcr.io/argo-edan/tf-clientpy3:latest
+                    command: [sh, -c]
+                    args: ["
+                      cd /tmp/model &&
+                      python3 ./client.py --input-path /mnt/vol/input/{{inputs.parameters.webhook}} --model-dir-path /mnt/vol/dictionary    
+                    "]  
+
+                - name: output
+                  inputs:
+                    artifacts:
+                    - name: CODE
+                      path: /tmp/
+                  container:
                     image: alpine:latest
                   outputs:
                     artifacts:
                     - name: training-logs
-                      path: /mnt/vol/model
-                
-                - name: client
-                  container:
-                    image: aplhine:latest
+                      path: /tmp/model
 
                 - name: tfsvc
                   resource:
                     action: apply
-                    successCondition: status.loadBalancer.ingress.ip != null
+                    # successCondition: status.loadBalancer.ingress.ip != null
                     manifest: |
                       apiVersion: v1
                       kind: Service
@@ -172,7 +226,7 @@ spec:
                 - name: tfserve
                   resource:
                     action: apply
-                    successCondition: status.phase == "Running"
+                    successCondition: status.condtions != null
                     manifest: |
                       apiVersion: extensions/v1beta1
                       kind: Deployment
@@ -242,7 +296,7 @@ spec:
                 - name: tfjob
                   resource:
                     action: create
-                    # successCondition: status.tfReplicaStatuses.Worker.succeeded > 0
+                    successCondition: status.tfReplicaStatuses.Worker.succeeded > 0
                     failureCondition: status.tfReplicaStatuses.Worker.failed > 0
                     manifest: |
                       apiVersion: kubeflow.org/v1alpha2
@@ -275,7 +329,7 @@ spec:
                                   wget https://dl.minio.io/server/minio/release/linux-amd64/minio &&
                                   chmod +x minio &&
                                   ./minio server /data &&
-                                  git clone https://github.com/alexmt/log-analyzer.git &&
+                                  git clone -b edanbranch https://github.com/EdanSneh/log-analyzer.git &&
                                   cd log-analyzer/model &&
                                   python3 ./train.py --input-path sample-data/logs.txt --model-dir-path /mnt/vol/model
                                   "]
@@ -287,11 +341,11 @@ spec:
                                   volumeMounts: 
                                   - name: workdir
                                     mountPath: /mnt/vol
-                                  resources:
-                                    limits:
-                                      nvidia.com/gpu: "1"
+                                  # Add when more gpus exist
+                                  # resources:
+                                  #   limits:
+                                  #     nvidia.com/gpu: "1"
                                 restartPolicy: OnFailure
-                                
 
-                                  
-                                              
+                                                              
+                                                            
