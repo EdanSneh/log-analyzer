@@ -1,0 +1,265 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: log-analyzer-workflow-
+spec:
+  entrypoint: log-analyzer
+  arguments:
+    parameters:
+    - name: webhook
+      value: overriddenvalue
+  volumes:
+  - name: workdir
+    persistentVolumeClaim:
+      claimName: log-analyzer-pvc
+  templates:
+  - name: log-analyzer
+    inputs:
+      parameters:
+      - name: webhook
+      artifacts:
+      - name: CODE
+        git: 
+          repo: https://github.com/EdanSneh/log-analyzer.git
+    dag:
+      tasks:
+      - name: TFSVC
+        template: tfsvc
+      - name: TFSERVER
+        template: tfserve
+      - name: APPLY-PVC
+        template: apply-pvc
+      - name: WEBHOOK
+        template: redeploy-webhook
+        arguments:
+          artifacts:
+          - name: CODE
+            from: "{{inputs.artifacts.CODE}}"
+      - name: TFJOB
+        template: tfjob
+        dependencies: [APPLY-PVC, WEBHOOK]
+      - name: OutputTFJOB
+        template: output
+        dependencies: [TFJOB]
+      - name: TFCLIENT
+        template: client
+        dependencies: [TFSVC, TFSERVER, OutputTFJOB]
+
+
+  - name: apply-pvc
+    resource:
+      action: apply
+      manifest: |
+        kind: PersistentVolumeClaim
+        apiVersion: v1
+        metadata:
+          name: log-analyzer-pvc
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 1Gi
+
+  - name: redeploy-webhook
+    inputs:
+      artifacts:
+      - name: CODE
+        path: /root/
+    container:
+      image: lachlanevenson/k8s-kubectl
+      command: [sh, -c]
+      args: ["
+        POD=$(kubectl get pod -l app=webhook -o jsonpath='{.items[0].metadata.name}') &&
+        kubectl delete sensor webhook-threedee --ignore-not-found=true &&
+        kubectl delete pod $POD &&
+        kubectl create -f /root/model/yamls/webhook_logs.yaml
+      "]
+
+  - name: output
+    container:
+      volumeMounts: 
+      - name: workdir
+        mountPath: /mnt/vol
+      image: alpine:latest
+    outputs:
+      artifacts:
+      - name: training-logs
+        path: /mnt/vol/model
+  
+  - name: client
+    container:
+      image: aplhine:latest
+
+  - name: tfsvc
+    resource:
+      action: apply
+      successCondition: status.loadBalancer.ingress.ip != null
+      manifest: |
+        apiVersion: v1
+        kind: Service
+        metadata:
+          annotations:
+            getambassador.io/config: |-
+              ---
+              apiVersion: ambassador/v0
+              kind:  Mapping
+              name: tfserving-mapping-log-server-get
+              prefix: /models/log-server/
+              rewrite: /
+              method: GET
+              service: log-server.default:8000
+              ---
+              apiVersion: ambassador/v0
+              kind:  Mapping
+              name: tfserving-mapping-log-server-post
+              prefix: /models/log-server/
+              rewrite: /model/log-server:predict
+              method: POST
+              service: log-server.default:8000
+            ksonnet.io/managed: '{"pristine":"H4sIAAAAAAAA/7RRPW/UQBDt+RXW1N7YdGFKJISQQEQKosEUk/V4s8KeHe0OR6KT/ztaXzhHQHFNSr+Pefv8jkAav3IuMQkgHF5DCz+ijIBwy/kQPUMLCxuNZAR4BBJJRhaTlPoZ2Gi5o1JoTPkqps4nmWIABOfcIPtxbHZdd+gHqSnYNJ9INUoYRGhhbGwqNVaCW06Em1NwFePsAtsgmnmKD9h0Sxp5Lt3Od4Nk/pWjMTbdIAvbfRqxef/uyyDlVAabXX418kQ/Z8Prvu8HeYH3aiqXP3hjn5GomcfobS9y8/n2giawtjDTHc/bPqQKCLu0zluSCNtprEWTsBggbPwH8ax13HqlNvzbXLGi5CvxlFqlRdnXOE3ZCuC34x9zyOqdTe7pL0G7SQDf9H3fglEObDdnZG3PxnszfWZ0mtPD49l+/Y+9Iuv3FgrP7C3l/5ZfW7BHrec/Jhrf0kziK7y++g0AAP//AQAA//8TpCGzCAMAAA=="}'
+          creationTimestamp: null
+          labels:
+            app: log-server
+            app.kubernetes.io/deploy-manager: ksonnet
+            ksonnet.io/component: serveInception
+          name: log-server
+          selfLink: /api/v1/namespaces/default/services/log-server
+        spec:
+          externalTrafficPolicy: Cluster
+          ports:
+          - name: grpc-tf-serving
+            nodePort: 31895
+            port: 9000
+            protocol: TCP
+            targetPort: 9000
+          - name: http-tf-serving-proxy
+            nodePort: 31642
+            port: 8000
+            protocol: TCP
+            targetPort: 8000
+          selector:
+            app: log-server
+          sessionAffinity: None
+          type: LoadBalancer
+  - name: tfserve
+    resource:
+      action: apply
+      successCondition: status.phase == "Running"
+      manifest: |
+        apiVersion: extensions/v1beta1
+        kind: Deployment
+        metadata:
+          annotations:
+            deployment.kubernetes.io/revision: "1"
+            ksonnet.io/managed: '{"pristine":"H4sIAAAAAAAA/4xST4vbTgy9/z6GznZs/whLdiCH0kLYS8mlvZQQ5LHiDjszms4fd0Pwdy+y25Cll97eSHp60tPcAIP5SjEZ9qCA3jJ5wamZup4ydlDBq/EDKPhEwfLVkc9QgaOMA2YEdQOLPdkkCEMABZbHOlGcKAo5sfeUN4YbzS6wF76CJf/iNYUsynMFHh29I9eTiEs4BdSSG+iCxWapToG0KGZywWImwf8803Tfd+pgfuim2Wc0nmIC9e0GGEcB0JQUm974RszheLH88+x4IHu+t6zrwDHvn9u2XV5rWobfv5P+k+kx0Tlg/r4fk2oajCPXztYDOW7gVIFxOMrKo45i3WvpSWTrJZ7qUHpr9MM8i4LxY91tnsZQ1PR/2+3ap3ZbtwPunvsdwu+mx2Ltka3RV1DwcvnM+RgprVf96wZQgey12nF358gxg5Jd51MFkRKXqGlx2xpn8oJ0KKBgu/wVx1HUtgcjIpMZDG40u2aUmm6WHj8KpUdi90jsDma9E+kSTb5+ZJ/pLUv1JR0ilwCqa9u2glj8h/QlUVwD83ya53n+7xcAAAD//wEAAP//UKf68ucCAAA="}'
+          creationTimestamp: null
+          generation: 1
+          labels:
+            app: log-server
+            app.kubernetes.io/deploy-manager: ksonnet
+            ksonnet.io/component: serveInception
+          name: log-server-v1
+          selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/log-server-v1
+        spec:
+          progressDeadlineSeconds: 600
+          replicas: 1
+          revisionHistoryLimit: 10
+          selector:
+            matchLabels:
+              app: log-server
+              version: v1
+          strategy:
+            rollingUpdate:
+              maxSurge: 1
+              maxUnavailable: 1
+            type: RollingUpdate
+          template:
+            metadata:
+              creationTimestamp: null
+              labels:
+                app: log-server
+                version: v1
+            spec:
+              containers:
+              - args:
+                - /usr/bin/tensorflow_model_server
+                - --port=9000
+                - --model_name=log-server
+                - --model_base_path=gs://argo-ml-demo/
+                image: gcr.io/kubeflow-images-public/tensorflow-serving-1.6gpu:v20180604-0da89b8a
+                imagePullPolicy: IfNotPresent
+                name: log-server
+                ports:
+                - containerPort: 9000
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: "4"
+                    memory: 4Gi
+                    nvidia.com/gpu: "1"
+                  requests:
+                    cpu: "1"
+                    memory: 1Gi
+                securityContext:
+                  runAsUser: 1000
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+              dnsPolicy: ClusterFirst
+              restartPolicy: Always
+              schedulerName: default-scheduler
+              securityContext: {}
+              terminationGracePeriodSeconds: 30
+        
+
+  - name: tfjob
+    resource:
+      action: create
+      # successCondition: status.tfReplicaStatuses.Worker.succeeded > 0
+      failureCondition: status.tfReplicaStatuses.Worker.failed > 0
+      manifest: |
+        apiVersion: kubeflow.org/v1alpha2
+        kind: TFJob
+        metadata:
+          ownerReferences:
+          - apiVersion: argoproj.io/v1alpha1
+            blockOwnerDeletion: true
+            kind: Workflow
+            name: "{{workflow.name}}"
+            uid: "{{workflow.uid}}"
+          labels:
+            ksonnet.io/component: log-analyzer
+          generateName: log-analyzer-
+          namespace: default
+        spec:
+          tfReplicaSpecs:
+            Worker:
+              replicas: 1
+              template:
+                spec:
+                  volumes:
+                  - name: workdir
+                    persistentVolumeClaim:
+                      claimName: log-analyzer-pvc
+                  containers:
+                  - args: ["
+                    apt-get update &&
+                    apt-get install git wget -y &&
+                    wget https://dl.minio.io/server/minio/release/linux-amd64/minio &&
+                    chmod +x minio &&
+                    ./minio server /data &&
+                    git clone https://github.com/alexmt/log-analyzer.git &&
+                    cd log-analyzer/model &&
+                    python3 ./train.py --input-path sample-data/logs.txt --model-dir-path /mnt/vol/model
+                    "]
+                    command:
+                    - /bin/sh
+                    - -c
+                    image: tensorflow/tensorflow:latest-gpu-py3
+                    name: tensorflow
+                    volumeMounts: 
+                    - name: workdir
+                      mountPath: /mnt/vol
+                    resources:
+                      limits:
+                        nvidia.com/gpu: "1"
+                  restartPolicy: OnFailure
