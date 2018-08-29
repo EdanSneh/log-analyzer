@@ -176,7 +176,7 @@ spec:
                     args: ["
                       cd /tmp/model &&
                       python3 ./client.py --input-path /mnt/vol/input/{{inputs.parameters.webhook}} --model-dir-path ./dictionary &&
-                      mkdir logs -p &&
+                      mkdir /mnt/vol/input/logs -p &&s
                       mv /mnt/vol/input/{{inputs.parameters.webhook}} /mnt/vol/input/logs/log.txt  
                     "]  
 
