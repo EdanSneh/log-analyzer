@@ -150,7 +150,7 @@ spec:
         cd /tmp/model &&
         python3 ./client.py --input-path /mnt/vol/input/{{inputs.parameters.webhook}} --model-dir-path ./dictionary &&
         mkdir /mnt/vol/input/logs -p &&
-        mv /mnt/vol/input/{{inputs.parameters.webhook}} /mnt/vol/input/logs/log.txt &&
+        mv /mnt/vol/input/{{inputs.parameters.webhook}} /mnt/vol/input/logs/log.txt  
       "]  
 
   - name: output
