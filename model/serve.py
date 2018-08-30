@@ -7,6 +7,7 @@ import tensorflow as tf
 import os
 import json
 import common
+from google.cloud import storage
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input-path")
@@ -15,15 +16,15 @@ parser.add_argument("--version")
 args = parser.parse_args()
 
 
-with open(os.path.join(args.input_path, "dictionary.json"), "r") as dict_file:
+with open(os.path.join("dictionary", "dictionary.json"), "r") as dict_file:
     dict = json.load(dict_file)
 
 #initialize variables and model
 n_input = common.get_n_input()
 pred, x, y = common.init_model(dict, n_input)
-
+finalpred = tf.argmax(pred, 1)
 tensor_info_input = tf.saved_model.utils.build_tensor_info(x)
-tensor_info_output = tf.saved_model.utils.build_tensor_info(pred)
+tensor_info_output = tf.saved_model.utils.build_tensor_info(finalpred)
 
 #model output
 
@@ -54,5 +55,9 @@ builder.add_meta_graph_and_variables(
     })
 
 #export the model
+
 builder.save(as_text=True)
 
+#TODO automatically move ML to bucket
+#the argo workflow will automatically use the highest version
+common.upload_blob("gs://argo-ml-demo", export_path, args.version)

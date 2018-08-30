@@ -7,6 +7,7 @@ name = "pypi"
 tensorflow = "*"
 tensorflow-serving-api = "*"
 requests = "*"
+"google.cloud.storage" = "*"
 
 [dev-packages]
 pylint = "*"

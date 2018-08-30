@@ -14,7 +14,7 @@ parser.add_argument("--model-dir-path")
 
 args = parser.parse_args()
 
-with open(os.path.join(args.model_dir_path, "dictionary.json"), "r") as dict_file:
+with open(os.path.join("dictionary", "dictionary.json"), "r") as dict_file:
     dict = json.load(dict_file)
 
 data = common.read_data(args.input_path)
@@ -36,8 +36,7 @@ with tf.Session() as session:
             for i in range(32):
                 keys = np.reshape(np.array(symbols_in_keys), [-1, n_input, 1])
                 onehot_pred = session.run(pred, feed_dict={x: keys})
-                onehot_pred_index = int(tf.argmax(onehot_pred, 1).eval())
-                sentence = "%s %s" % (sentence, reverse_dictionary[onehot_pred_index])
-                symbols_in_keys = symbols_in_keys[1:]
-                symbols_in_keys.append(onehot_pred_index)
-            print(sentence)
+                #shows model accuracy
+                print(onehot_pred)
+                #TODO see if given log matches any of the highest rated logs to see if it is common
+            # print(sentence)
